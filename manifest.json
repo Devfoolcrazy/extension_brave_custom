@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Seuil",
+  "description": "Page de démarrage personnelle : horloge, recherche, fond Unsplash, raccourcis et dossiers.",
+  "version": "1.0.0",
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "permissions": ["storage", "unlimitedStorage", "favicon"],
+  "host_permissions": [
+    "https://api.unsplash.com/*",
+    "https://images.unsplash.com/*",
+    "https://unsplash.com/*"
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

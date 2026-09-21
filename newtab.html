@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nouvel onglet</title>
+  <link rel="stylesheet" href="css/newtab.css">
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <div id="wallpaper" class="wallpaper" aria-hidden="true"></div>
+  <div id="scrim" class="scrim" aria-hidden="true"></div>
+
+  <header class="clock">
+    <time id="clock-time" class="clock__time"></time>
+    <p id="clock-date" class="clock__date"></p>
+  </header>
+
+  <main class="stage">
+    <form id="search" class="search" role="search" autocomplete="off">
+      <svg class="search__glyph" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+      <input id="search-input" class="search__input" type="text" name="q" aria-label="Rechercher ou ouvrir un raccourci" spellcheck="false" autofocus
+             role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-suggestions">
+      <kbd class="search__hint" aria-hidden="true">/</kbd>
+      <ul id="search-suggestions" class="suggestions" role="listbox" aria-label="Suggestions" hidden></ul>
+    </form>
+
+    <nav class="shelf" aria-label="Raccourcis">
+      <div id="tiles" class="tiles"></div>
+      <div id="folders" class="tiles"></div>
+    </nav>
+  </main>
+
+  <footer class="footer">
+    <p id="credit" class="credit"></p>
+    <div class="footer__actions">
+      <button id="edit-toggle" class="ghost" type="button">Modifier les raccourcis</button>
+      <button id="settings-open" class="ghost" type="button">Réglages</button>
+    </div>
+  </footer>
+
+  <!-- Contenu d'un dossier -->
+  <dialog id="folder-dialog" class="sheet sheet--folder" aria-labelledby="folder-title">
+    <header class="sheet__head">
+      <h2 id="folder-title" class="sheet__title"></h2>
+      <input id="folder-name" class="field__input sheet__rename" type="text" aria-label="Nom du dossier" hidden>
+      <button class="ghost ghost--solid" type="button" data-close>Fermer</button>
+    </header>
+    <div id="folder-tiles" class="tiles tiles--folder"></div>
+    <footer id="folder-foot" class="sheet__foot" hidden>
+      <button id="folder-delete" class="btn btn--danger" type="button">Supprimer le dossier</button>
+    </footer>
+  </dialog>
+
+  <!-- Ajout / édition d'un raccourci -->
+  <dialog id="link-dialog" class="sheet" aria-labelledby="link-dialog-title">
+    <form id="link-form" method="dialog" novalidate>
+      <header class="sheet__head">
+        <h2 id="link-dialog-title" class="sheet__title">Raccourci</h2>
+      </header>
+      <label class="field">
+        <span class="field__label">Adresse</span>
+        <input class="field__input" name="url" type="text" inputmode="url" placeholder="exemple.fr" required>
+      </label>
+      <label class="field">
+        <span class="field__label">Nom</span>
+        <input class="field__input" name="title" type="text" placeholder="Déduit de l'adresse si vide">
+      </label>
+      <label class="field">
+        <span class="field__label">Icône</span>
+        <input class="field__input" name="icon" type="text" placeholder="Favicon du site si vide">
+        <span class="field__help">Un emoji, une ou deux lettres, ou l'adresse d'une image.</span>
+      </label>
+      <label class="field">
+        <span class="field__label">Emplacement</span>
+        <select class="field__input" name="parent"></select>
+      </label>
+      <p id="link-error" class="field__error" role="alert" hidden></p>
+      <footer class="sheet__foot">
+        <button id="link-delete" class="btn btn--danger" type="button">Supprimer</button>
+        <span class="sheet__spacer"></span>
+        <button class="btn" type="button" data-close>Annuler</button>
+        <button class="btn btn--primary" type="submit">Enregistrer</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Réglages -->
+  <dialog id="settings-dialog" class="sheet sheet--settings" aria-labelledby="settings-title">
+    <header class="sheet__head">
+      <h2 id="settings-title" class="sheet__title">Réglages</h2>
+      <button class="ghost ghost--solid" type="button" data-close>Fermer</button>
+    </header>
+
+    <form id="settings-form" class="settings">
+      <fieldset class="group">
+        <legend class="group__title">Recherche</legend>
+        <label class="field">
+          <span class="field__label">Moteur</span>
+          <select class="field__input" name="search.engine"></select>
+        </label>
+        <label class="field" data-show-when="search.engine=custom">
+          <span class="field__label">Adresse de recherche</span>
+          <input class="field__input" name="search.customUrl" type="text" placeholder="https://exemple.fr/search?q=%s">
+          <span class="field__help">%s est remplacé par ta recherche.</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="search.newTab">
+          <span>Ouvrir les résultats dans un nouvel onglet</span>
+        </label>
+        <div class="field">
+          <span class="field__label">Mots-clés</span>
+          <span class="field__help">Tape le mot-clé, une espace, puis ta recherche : « yt lofi » cherche lofi sur YouTube. Dans l'adresse, %s est remplacé par la recherche.</span>
+          <div id="keywords" class="keywords"></div>
+          <p id="keywords-status" class="field__error" role="alert" hidden></p>
+          <div class="row">
+            <button id="keyword-add" class="btn" type="button">Ajouter un mot-clé</button>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend class="group__title">Horloge</legend>
+        <label class="check">
+          <input type="checkbox" name="clock.hour12">
+          <span>Format 12 heures</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="clock.seconds">
+          <span>Afficher les secondes</span>
+        </label>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend class="group__title">Fond d'écran</legend>
+        <label class="field">
+          <span class="field__label">Source</span>
+          <select class="field__input" name="wallpaper.mode">
+            <option value="url">Une photo précise</option>
+            <option value="api">Photos Unsplash par thème</option>
+            <option value="folder">Un dossier d'images de mon ordinateur</option>
+            <option value="file">Une image de mon ordinateur</option>
+            <option value="none">Aucune image</option>
+          </select>
+        </label>
+
+        <label class="field" data-show-when="wallpaper.mode=url">
+          <span class="field__label">Adresse de la photo</span>
+          <input class="field__input" name="wallpaper.photoUrl" type="text" placeholder="https://unsplash.com/photos/…">
+          <span class="field__help">La page d'une photo Unsplash, ou l'adresse directe d'une image.</span>
+        </label>
+
+        <label class="field" data-show-when="wallpaper.mode=api">
+          <span class="field__label">Thème</span>
+          <input class="field__input" name="wallpaper.query" type="text" placeholder="montagne, brume, architecture…">
+        </label>
+        <label class="field" data-show-when="wallpaper.mode=api">
+          <span class="field__label">Collections</span>
+          <input class="field__input" name="wallpaper.collections" type="text" placeholder="Identifiants séparés par des virgules (facultatif)">
+        </label>
+        <div class="field" data-show-when="wallpaper.mode=folder">
+          <span class="field__label">Dossier</span>
+          <input id="wallpaper-folder" class="field__input" type="file" accept="image/*" webkitdirectory multiple>
+          <span class="field__help">Les images sont copiées dans le navigateur, à la taille de ton écran. Si tu ajoutes des images au dossier, choisis-le à nouveau pour les prendre en compte.</span>
+        </div>
+
+        <div class="stack" data-show-when="wallpaper.mode=api,folder">
+          <label class="field">
+            <span class="field__label">Changer de photo</span>
+            <select class="field__input" name="wallpaper.refresh">
+              <option value="tab">À chaque nouvel onglet</option>
+              <option value="quarter">Toutes les 15 minutes</option>
+              <option value="hourly">Toutes les heures</option>
+              <option value="daily">Chaque jour</option>
+              <option value="custom">À un intervalle de mon choix</option>
+              <option value="never">Seulement à la demande</option>
+            </select>
+          </label>
+          <div class="field" data-show-when="wallpaper.refresh=custom">
+            <span class="field__label" id="refresh-every-label">Intervalle</span>
+            <div class="pair">
+              <input class="field__input" name="wallpaper.refreshEvery" type="number" min="1" step="1" inputmode="numeric" aria-labelledby="refresh-every-label">
+              <select class="field__input" name="wallpaper.refreshUnit" aria-label="Unité de l'intervalle">
+                <option value="min">minutes</option>
+                <option value="hour">heures</option>
+                <option value="day">jours</option>
+              </select>
+            </div>
+            <span class="field__help" data-show-when="wallpaper.mode=api">Avec Unsplash, chaque changement consomme 2 des 50 requêtes par heure : reste au-dessus de 3 minutes.</span>
+          </div>
+        </div>
+        <label class="field" data-show-when="wallpaper.mode=api,url">
+          <span class="field__label">Clé d'accès Unsplash</span>
+          <input class="field__input" name="wallpaper.apiKey" type="password" autocomplete="off">
+          <span class="field__help">Gratuite sur unsplash.com/developers, limitée à 50 requêtes par heure. Requise pour les photos par thème, facultative pour une photo précise (elle ajoute le crédit du photographe).</span>
+        </label>
+
+        <div class="field" data-show-when="wallpaper.mode=file">
+          <span class="field__label">Image</span>
+          <input id="wallpaper-file" class="field__input" type="file" accept="image/*">
+        </div>
+
+        <label class="field" data-show-when="wallpaper.mode=url,api,folder,file">
+          <span class="field__label">Assombrir <output id="dim-out"></output></span>
+          <input name="wallpaper.dim" type="range" min="0" max="80" step="5">
+        </label>
+        <label class="field" data-show-when="wallpaper.mode=url,api,folder,file">
+          <span class="field__label">Flouter <output id="blur-out"></output></span>
+          <input name="wallpaper.blur" type="range" min="0" max="30" step="2">
+        </label>
+
+        <div class="row" data-show-when="wallpaper.mode=api,folder">
+          <button id="wallpaper-next" class="btn" type="button">Changer de photo maintenant</button>
+        </div>
+        <p id="wallpaper-status" class="field__help" role="status"></p>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend class="group__title">Apparence</legend>
+        <label class="field field--inline">
+          <span class="field__label">Couleur d'accent</span>
+          <input name="accent" type="color">
+        </label>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend class="group__title">Sauvegarde</legend>
+        <p class="field__help">Le fichier contient tes raccourcis, tes réglages et ta clé Unsplash. Les images importées depuis ton ordinateur n'en font pas partie.</p>
+        <div class="row">
+          <button id="config-export" class="btn" type="button">Exporter la configuration</button>
+          <button id="config-import" class="btn" type="button">Importer une configuration</button>
+          <input id="config-file" type="file" accept="application/json,.json" hidden>
+        </div>
+        <p id="config-status" class="field__help" role="status"></p>
+      </fieldset>
+    </form>
+  </dialog>
+</body>
+</html>
