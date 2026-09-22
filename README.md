@@ -4,6 +4,8 @@ Page de démarrage pour Brave (et tout navigateur Chromium) : horloge, recherche
 
 Aucun build, aucune dépendance : du HTML, du CSS et des modules JavaScript.
 
+![Seuil : horloge en haut à droite, barre de recherche avec suggestions de raccourcis, tuiles sur une photo de montagne](docs/screenshot.jpg)
+
 ## Installer
 
 1. Ouvre `brave://extensions`.
@@ -74,6 +76,25 @@ js/wallpaper.js    Unsplash, cache IndexedDB, affichage du fond
 js/tiles.js        Raccourcis, dossiers, mode édition, glisser-déposer
 js/settings.js     Panneau de réglages, export et import
 fonts/             Bricolage Grotesque (licence OFL), embarquée
+tests/             Tests Playwright (voir ci-dessous)
 ```
 
-Pour travailler sur la page hors extension : `python3 -m http.server` puis `http://localhost:8000/newtab.html`. La configuration passe alors par `localStorage` et les favicons sont remplacées par des initiales.
+Pour travailler sur la page hors extension : `npm run serve` puis `http://127.0.0.1:8765/newtab.html`. La configuration passe alors par `localStorage` et les favicons sont remplacées par des initiales.
+
+## Tests
+
+Des tests de bout en bout Playwright couvrent la recherche, les tuiles, les réglages et le fond d'écran, sur la page servie hors extension (`tests/`). Ils simulent ce qui dépend du navigateur : `chrome.tabs` pour le clic molette, les événements de glisser-déposer, les fichiers choisis pour un dossier d'images.
+
+```
+npm install
+npx playwright install chromium   # une fois
+npm test                          # ou npm run test:ui pour l'interface
+```
+
+Le serveur local est lancé automatiquement. Un test a besoin du réseau (il charge une image Unsplash) ; il présente un User-Agent ordinaire, car Unsplash refuse les navigateurs headless.
+
+Ce que les tests ne couvrent pas, parce que cela n'existe que dans l'extension chargée dans Brave : la synchronisation par `chrome.storage.onChanged`, les favicons du navigateur, et le chargement d'une page photo Unsplash (`unsplash.com/photos/…`), qui repose sur les `host_permissions` pour passer CORS.
+
+## Licence
+
+MIT, voir `LICENSE`. La police Bricolage Grotesque est sous SIL Open Font License 1.1 (`fonts/OFL.txt`).

@@ -1,0 +1,14 @@
+{
+  "name": "seuil",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Page de démarrage pour Brave : tests de bout en bout",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "serve": "python3 -m http.server 8765 --bind 127.0.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

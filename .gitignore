@@ -3,3 +3,6 @@
 
 # Exports de configuration : contiennent la clé Unsplash
 seuil-*.json
+node_modules/
+test-results/
+playwright-report/
