@@ -2,6 +2,13 @@
 
 import { isExtension } from './store.js';
 
+// 'browser' : favicons connues de Brave, sans requête vers un tiers. 'duckduckgo' :
+// service d'icônes de DuckDuckGo, qui couvre aussi les sites jamais visités.
+let source = 'browser';
+export function setIconSource(mode) {
+  source = mode;
+}
+
 export function hostOf(url) {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
@@ -27,7 +34,7 @@ export function iconOf(link) {
     span.textContent = custom;
     return span;
   }
-  if (!custom && !isExtension) return initial(link);
+  if (!custom && source !== 'duckduckgo' && !isExtension) return initial(link);
 
   const img = document.createElement('img');
   img.className = 'icon';
@@ -36,6 +43,8 @@ export function iconOf(link) {
   img.addEventListener('error', () => img.replaceWith(initial(link)), { once: true });
   if (custom) {
     img.src = custom;
+  } else if (source === 'duckduckgo') {
+    img.src = `https://icons.duckduckgo.com/ip3/${hostOf(link.url)}.ico`;
   } else {
     // Favicon servie depuis le cache du navigateur : aucun service tiers sollicité.
     const url = new URL(chrome.runtime.getURL('/_favicon/'));

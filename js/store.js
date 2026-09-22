@@ -45,10 +45,15 @@ export function defaults() {
       refresh: 'daily',
       refreshEvery: 30,
       refreshUnit: 'min',
+      autoDim: true,
       dim: 25,
       blur: 0,
     },
     accent: '#f2b84b',
+    icons: 'browser', // ou 'duckduckgo'
+    createdAt: Date.now(),
+    lastExport: 0,
+    backupSnoozedAt: 0,
     items: [
       link('GitHub', 'https://github.com'),
       link('GitLab', 'https://gitlab.com'),

@@ -17,6 +17,7 @@ export function initTiles({ config, persist }) {
   const folderName = document.getElementById('folder-name');
   const folderFoot = document.getElementById('folder-foot');
   const folderDelete = document.getElementById('folder-delete');
+  const folderOut = document.getElementById('folder-out');
 
   const linkDialog = document.getElementById('link-dialog');
   const linkForm = document.getElementById('link-form');
@@ -349,6 +350,8 @@ export function initTiles({ config, persist }) {
     const el = event.target.closest('.tile[data-id]');
     if (!editing || !el) return;
     drag = { id: el.dataset.id, parentId: el.dataset.parent };
+    // Depuis un dossier ouvert, une zone apparaît pour ramener le raccourci à l'accueil.
+    folderOut.hidden = !drag.parentId;
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', el.dataset.id);
     requestAnimationFrame(() => el.classList.add('is-dragged'));
@@ -385,8 +388,37 @@ export function initTiles({ config, persist }) {
     commit();
   }
 
+  // Sortie d'un dossier : dépôt sur la zone prévue, ou n'importe où hors de la fenêtre du dossier.
+  function isOutTarget(event) {
+    return drag?.parentId && (event.target === folderDialog || event.target.closest('#folder-out'));
+  }
+
+  folderDialog.addEventListener('dragover', (event) => {
+    if (!isOutTarget(event)) return;
+    event.preventDefault();
+    folderOut.classList.add('is-over');
+  });
+  folderDialog.addEventListener('dragleave', (event) => {
+    if (event.target.closest('#folder-out') && !folderOut.contains(event.relatedTarget)) {
+      folderOut.classList.remove('is-over');
+    }
+  });
+  folderDialog.addEventListener('drop', (event) => {
+    if (!isOutTarget(event)) return;
+    event.preventDefault();
+    const source = locate(drag.id);
+    onDragEnd();
+    if (!source) return;
+    source.list.splice(source.index, 1);
+    config.items.push(source.item);
+    commit();
+    toast(`« ${labelOf(source.item)} » est revenu à l'accueil.`);
+  });
+
   function onDragEnd() {
     drag = null;
+    folderOut.hidden = true;
+    folderOut.classList.remove('is-over');
     clearDropMarks();
     document.querySelectorAll('.is-dragged').forEach((node) => node.classList.remove('is-dragged'));
   }
@@ -410,5 +442,15 @@ export function initTiles({ config, persist }) {
   });
 
   render();
-  return { render };
+  return {
+    render,
+    toggleEdit() {
+      editing = !editing;
+      render();
+    },
+    // Raccourci clavier : n-ième raccourci de l'accueil (dossiers exclus).
+    rootLink(n) {
+      return config.items.filter((item) => item.type === 'link')[n - 1] ?? null;
+    },
+  };
 }

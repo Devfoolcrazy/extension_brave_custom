@@ -33,7 +33,13 @@
 
   <footer class="footer">
     <p id="credit" class="credit"></p>
+    <p id="backup-hint" class="backup" hidden>
+      <span>Plus d'un mois sans sauvegarde de tes raccourcis.</span>
+      <button id="backup-export" class="ghost" type="button">Exporter maintenant</button>
+      <button id="backup-later" class="ghost" type="button">Plus tard</button>
+    </p>
     <div class="footer__actions">
+      <button id="wallpaper-skip" class="ghost" type="button" hidden>Retirer cette image</button>
       <button id="edit-toggle" class="ghost" type="button">Modifier les raccourcis</button>
       <button id="settings-open" class="ghost" type="button">Réglages</button>
     </div>
@@ -47,6 +53,7 @@
       <button class="ghost ghost--solid" type="button" data-close>Fermer</button>
     </header>
     <div id="folder-tiles" class="tiles tiles--folder"></div>
+    <div id="folder-out" class="dropzone" hidden>Déposer ici pour sortir du dossier</div>
     <footer id="folder-foot" class="sheet__foot" hidden>
       <button id="folder-delete" class="btn btn--danger" type="button">Supprimer le dossier</button>
     </footer>
@@ -161,7 +168,16 @@
         <div class="field" data-show-when="wallpaper.mode=folder">
           <span class="field__label">Dossier</span>
           <input id="wallpaper-folder" class="field__input" type="file" accept="image/*" webkitdirectory multiple>
-          <span class="field__help">Les images sont copiées dans le navigateur, à la taille de ton écran. Si tu ajoutes des images au dossier, choisis-le à nouveau pour les prendre en compte.</span>
+          <span class="field__help">Les images sont copiées dans le navigateur, à la taille de ton écran.</span>
+          <label class="check">
+            <input id="folder-append" type="checkbox">
+            <span>Ajouter aux images déjà importées, au lieu de les remplacer</span>
+          </label>
+        </div>
+        <div class="field" data-show-when="wallpaper.mode=folder">
+          <span class="field__label">Bibliothèque</span>
+          <div id="library" class="library" hidden></div>
+          <span id="library-status" class="field__help"></span>
         </div>
 
         <div class="stack" data-show-when="wallpaper.mode=api,folder">
@@ -204,6 +220,10 @@
           <span class="field__label">Assombrir <output id="dim-out"></output></span>
           <input name="wallpaper.dim" type="range" min="0" max="80" step="5">
         </label>
+        <label class="check" data-show-when="wallpaper.mode=url,api,folder,file">
+          <input type="checkbox" name="wallpaper.autoDim">
+          <span>Assombrir davantage les photos claires, pour garder le texte lisible</span>
+        </label>
         <label class="field" data-show-when="wallpaper.mode=url,api,folder,file">
           <span class="field__label">Flouter <output id="blur-out"></output></span>
           <input name="wallpaper.blur" type="range" min="0" max="30" step="2">
@@ -221,11 +241,23 @@
           <span class="field__label">Couleur d'accent</span>
           <input name="accent" type="color">
         </label>
+        <label class="field">
+          <span class="field__label">Icônes des raccourcis</span>
+          <select class="field__input" name="icons">
+            <option value="browser">Celles que Brave connaît déjà</option>
+            <option value="duckduckgo">Via DuckDuckGo, pour tous les sites</option>
+          </select>
+          <span class="field__help">Brave n'a l'icône que des sites déjà visités ; les autres ont un globe gris. DuckDuckGo les fournit toutes, mais reçoit alors la liste de tes sites.</span>
+        </label>
       </fieldset>
 
       <fieldset class="group">
         <legend class="group__title">Sauvegarde</legend>
-        <p class="field__help">Le fichier contient tes raccourcis, tes réglages et ta clé Unsplash. Les images importées depuis ton ordinateur n'en font pas partie.</p>
+        <p class="field__help">Le fichier contient tes raccourcis, tes mots-clés et tes réglages. Les images importées depuis ton ordinateur n'en font pas partie.</p>
+        <label class="check">
+          <input id="export-key" type="checkbox">
+          <span>Inclure ma clé Unsplash (pour ma propre sauvegarde uniquement)</span>
+        </label>
         <div class="row">
           <button id="config-export" class="btn" type="button">Exporter la configuration</button>
           <button id="config-import" class="btn" type="button">Importer une configuration</button>

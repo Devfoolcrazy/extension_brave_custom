@@ -2,7 +2,16 @@
 // (name="wallpaper.dim") et s'applique dès qu'il change.
 
 import { ENGINES, normalize, save } from './store.js';
-import { applyLook, applyWallpaper, importFolder, libraryCount, storeFile } from './wallpaper.js';
+import {
+  applyLook,
+  applyWallpaper,
+  importFolder,
+  libraryEntries,
+  libraryRemove,
+  libraryRestore,
+  storeFile,
+} from './wallpaper.js';
+import { toast } from './toast.js';
 
 const WALLPAPER_SOURCE_FIELDS = new Set([
   'wallpaper.mode',
@@ -19,6 +28,10 @@ export function initSettings({ config, persist, onChange }) {
   const configStatus = document.getElementById('config-status');
   const fileInput = document.getElementById('wallpaper-file');
   const folderInput = document.getElementById('wallpaper-folder');
+  const folderAppend = document.getElementById('folder-append');
+  const library = document.getElementById('library');
+  const libraryStatus = document.getElementById('library-status');
+  const exportKey = document.getElementById('export-key');
   const importInput = document.getElementById('config-file');
 
   const read = (path) => path.split('.').reduce((node, key) => node?.[key], config);
@@ -134,6 +147,52 @@ export function initSettings({ config, persist, onChange }) {
     wallpaperStatus.textContent = await applyWallpaper(config, options);
   }
 
+  /* ---------- Bibliothèque d'images ---------- */
+
+  const plural = (count, word) => `${count} ${word}${count > 1 ? 's' : ''}`;
+
+  async function renderLibrary() {
+    if (config.wallpaper.mode !== 'folder') return;
+    for (const img of library.querySelectorAll('img')) URL.revokeObjectURL(img.src);
+    const entries = await libraryEntries();
+    library.replaceChildren(
+      ...entries.map(({ key, name, thumb }) => {
+        const item = document.createElement('figure');
+        item.className = 'library__item';
+        item.dataset.key = key;
+        const img = document.createElement('img');
+        img.alt = name;
+        img.title = name;
+        img.loading = 'lazy';
+        if (thumb) img.src = URL.createObjectURL(thumb);
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'library__remove';
+        remove.textContent = '×';
+        remove.setAttribute('aria-label', `Retirer ${name}`);
+        item.append(img, remove);
+        return item;
+      }),
+    );
+    library.hidden = !entries.length;
+    libraryStatus.textContent = entries.length ? `${plural(entries.length, 'image')} dans la bibliothèque.` : '';
+  }
+
+  library.addEventListener('click', async (event) => {
+    const item = event.target.closest('.library__item');
+    if (!item || !event.target.closest('.library__remove')) return;
+    const entry = await libraryRemove(Number(item.dataset.key));
+    await renderLibrary();
+    await applyWallpaper(config);
+    toast(`Image « ${entry?.name ?? '' } » retirée.`, {
+      action: 'Annuler',
+      async onAction() {
+        if (entry) await libraryRestore(entry);
+        await renderLibrary();
+      },
+    });
+  });
+
   function onField(event) {
     const field = event.target;
     if (!field.name) return;
@@ -169,16 +228,19 @@ export function initSettings({ config, persist, onChange }) {
     }
   });
 
-  const plural = (count, word) => `${count} ${word}${count > 1 ? 's' : ''}`;
-
   folderInput.addEventListener('change', async () => {
     const files = folderInput.files;
     if (!files.length) return;
     try {
-      const { added, skipped } = await importFolder(files, (done, total) => {
-        wallpaperStatus.textContent = `Import des images : ${done} sur ${total}…`;
-      });
+      const { added, skipped } = await importFolder(
+        files,
+        (done, total) => {
+          wallpaperStatus.textContent = `Import des images : ${done} sur ${total}…`;
+        },
+        { append: folderAppend.checked },
+      );
       await applyWallpaper(config, { force: true });
+      await renderLibrary();
       wallpaperStatus.textContent =
         `${plural(added, 'image')} ${added > 1 ? 'importées' : 'importée'}.` +
         (skipped ? ` ${plural(skipped, 'fichier')} illisible${skipped > 1 ? 's' : ''} (format non pris en charge).` : '');
@@ -188,14 +250,28 @@ export function initSettings({ config, persist, onChange }) {
     folderInput.value = '';
   });
 
-  document.getElementById('config-export').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  // Le fichier exporté n'emporte ni les dates internes ni, sauf demande, la clé Unsplash :
+  // il peut alors être partagé ou versionné sans risque.
+  function exportConfig(includeKey) {
+    const { createdAt, lastExport, backupSnoozedAt, ...rest } = config;
+    const out = structuredClone(rest);
+    if (!includeKey) out.wallpaper.apiKey = '';
+    const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `seuil-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    configStatus.textContent = 'Configuration exportée.';
+    config.lastExport = Date.now();
+    persist();
+    onChange();
+  }
+
+  document.getElementById('config-export').addEventListener('click', () => {
+    exportConfig(exportKey.checked);
+    configStatus.textContent = exportKey.checked
+      ? 'Configuration exportée, avec ta clé Unsplash.'
+      : 'Configuration exportée, sans la clé Unsplash.';
   });
 
   document.getElementById('config-import').addEventListener('click', () => importInput.click());
@@ -206,7 +282,11 @@ export function initSettings({ config, persist, onChange }) {
     try {
       const parsed = JSON.parse(await file.text());
       if (!parsed || !Array.isArray(parsed.items)) throw new Error('format');
-      await save(normalize(parsed));
+      const next = normalize(parsed);
+      // Un fichier exporté sans clé ne doit pas effacer celle déjà en place.
+      if (!next.wallpaper.apiKey) next.wallpaper.apiKey = config.wallpaper.apiKey;
+      Object.assign(next, { createdAt: config.createdAt, lastExport: config.lastExport, backupSnoozedAt: 0 });
+      await save(next);
       location.reload();
     } catch {
       configStatus.textContent = "Ce fichier n'est pas une configuration Seuil valide. Rien n'a été modifié.";
@@ -216,16 +296,16 @@ export function initSettings({ config, persist, onChange }) {
   document.getElementById('settings-open').addEventListener('click', () => {
     fillForm();
     wallpaperStatus.textContent = '';
-    if (config.wallpaper.mode === 'folder') {
-      libraryCount().then((count) => {
-        if (count) wallpaperStatus.textContent = `${plural(count, 'image')} dans la bibliothèque.`;
-      });
-    }
     configStatus.textContent = '';
+    exportKey.checked = false;
+    renderLibrary();
     dialog.showModal();
   });
 
+  form.elements['wallpaper.mode'].addEventListener('change', renderLibrary);
+
   return {
+    exportConfig,
     // Configuration remplacée depuis un autre onglet : on rafraîchit le panneau s'il est ouvert.
     refresh() {
       if (dialog.open) fillForm();

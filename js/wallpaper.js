@@ -46,10 +46,54 @@ const libraryGet = (key) => idb('readonly', (s) => s.get(key), LIBRARY);
 
 /* ---------- Apparence ---------- */
 
+let autoDimEnabled = true;
+let measuredDim = 0;
+
+function applyAutoDim() {
+  document.documentElement.style.setProperty('--dim-auto', String(autoDimEnabled ? measuredDim : 0));
+}
+
 export function applyLook({ wallpaper }) {
   const root = document.documentElement.style;
   root.setProperty('--dim', String(wallpaper.dim / 100));
   root.setProperty('--blur', `${wallpaper.blur}px`);
+  autoDimEnabled = wallpaper.autoDim;
+  applyAutoDim();
+}
+
+// Luminosité moyenne (0 à 1) des zones qui portent du texte : le quart supérieur
+// droit (horloge) et la bande centrale (recherche et tuiles). On garde la plus claire.
+function brightness(img) {
+  const w = 32;
+  const h = 18;
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, w, h);
+  const { data } = ctx.getImageData(0, 0, w, h);
+  const zone = (x0, y0, x1, y1) => {
+    let sum = 0;
+    let n = 0;
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const i = (y * w + x) * 4;
+        sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+        n++;
+      }
+    }
+    return sum / n / 255;
+  };
+  return Math.max(zone(w / 2, 0, w, h / 2), zone(w / 4, h / 3, (3 * w) / 4, (5 * h) / 6));
+}
+
+// Voile supplémentaire pour une photo claire : rien jusqu'à 45 % de luminosité, jusqu'à +35 % au-delà.
+function measure(img) {
+  try {
+    const light = brightness(img);
+    measuredDim = Math.min(0.35, Math.max(0, (light - 0.45) * 0.8));
+  } catch {
+    measuredDim = 0; // image d'un hôte sans CORS : le canvas refuse de la lire
+  }
+  applyAutoDim();
 }
 
 // Couleur dominante de la dernière photo, posée avant toute lecture asynchrone
@@ -196,6 +240,7 @@ async function show(record) {
     el.classList.remove('is-visible');
     await new Promise((done) => setTimeout(done, 260));
   }
+  measure(img);
   el.style.backgroundImage = `url("${src}")`;
   el.classList.add('is-visible');
   document.body.classList.add('has-wallpaper');
@@ -211,6 +256,8 @@ async function show(record) {
 function clear() {
   const el = layer();
   shownId = undefined;
+  measuredDim = 0;
+  applyAutoDim();
   el.classList.remove('is-visible');
   el.style.backgroundImage = '';
   document.body.classList.remove('has-wallpaper');
@@ -346,6 +393,44 @@ export async function applyWallpaper({ wallpaper }, { force = false } = {}) {
 
 export const libraryCount = () => idb('readonly', (s) => s.count(), LIBRARY).catch(() => 0);
 
+// Vignette de 160 px, stockée avec l'image pour que la grille des réglages s'ouvre sans délai.
+async function thumbnail(blob) {
+  const bitmap = await createImageBitmap(blob, { resizeWidth: 160, resizeQuality: 'medium' });
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  canvas.getContext('2d').drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return canvas.convertToBlob({ type: 'image/jpeg', quality: 0.7 });
+}
+
+// Toutes les images de la bibliothèque, avec leur vignette (créée à la volée si elle manque).
+export async function libraryEntries() {
+  const keys = await libraryKeys();
+  const entries = [];
+  for (const key of keys) {
+    const entry = await libraryGet(key);
+    if (!entry) continue;
+    if (!entry.thumb) {
+      entry.thumb = await thumbnail(entry.blob).catch(() => null);
+      if (entry.thumb) await idb('readwrite', (s) => s.put(entry, key), LIBRARY);
+    }
+    entries.push({ key, name: entry.name, thumb: entry.thumb });
+  }
+  return entries;
+}
+
+// Retire une image et la renvoie, pour pouvoir annuler.
+export async function libraryRemove(key) {
+  const entry = await libraryGet(key);
+  await idb('readwrite', (s) => s.delete(key), LIBRARY);
+  const current = await get('current');
+  if (current?.libraryKey === key) await del('current');
+  return entry;
+}
+
+export const libraryRestore = (entry) => idb('readwrite', (s) => s.add(entry), LIBRARY);
+
+export const currentLibraryKey = async () => (await get('current'))?.libraryKey;
+
 // Ramène une image à la largeur utile de l'écran : un dossier de photos d'appareil
 // pèserait sinon plusieurs centaines de Mo une fois copié dans le navigateur.
 async function fitToScreen(file) {
@@ -362,25 +447,29 @@ async function fitToScreen(file) {
   return canvas.convertToBlob({ type: 'image/jpeg', quality: 0.88 });
 }
 
-// Remplace la bibliothèque par les images du dossier choisi (sous-dossiers compris).
-// Renvoie { added, skipped } ; ne touche à rien si aucune image n'est lisible.
-export async function importFolder(fileList, onProgress = () => {}) {
+// Importe les images du dossier choisi (sous-dossiers compris), en remplaçant la
+// bibliothèque ou en s'y ajoutant. Renvoie { added, skipped } ; ne touche à rien si
+// aucune image n'est lisible.
+export async function importFolder(fileList, onProgress = () => {}, { append = false } = {}) {
   const files = [...fileList].filter((file) => file.type.startsWith('image/'));
   const blobs = [];
   let skipped = 0;
   for (const [index, file] of files.entries()) {
     onProgress(index + 1, files.length);
     try {
-      blobs.push({ blob: await fitToScreen(file), name: file.name });
+      const blob = await fitToScreen(file);
+      blobs.push({ blob, name: file.name, thumb: await thumbnail(blob) });
     } catch {
       skipped += 1; // format que le navigateur ne sait pas décoder (HEIC, RAW…)
     }
   }
   if (!blobs.length) throw new Error("Aucune image lisible dans ce dossier.");
 
-  await idb('readwrite', (s) => s.clear(), LIBRARY);
+  if (!append) {
+    await idb('readwrite', (s) => s.clear(), LIBRARY);
+    await del('current');
+  }
   for (const entry of blobs) await idb('readwrite', (s) => s.add(entry), LIBRARY);
-  await del('current');
   return { added: blobs.length, skipped };
 }
 

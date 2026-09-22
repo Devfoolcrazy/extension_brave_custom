@@ -18,11 +18,13 @@ Après une modification du code, clique sur la flèche de rechargement de l'exte
 ## Utiliser
 
 - **Rechercher ou lancer** : tape `/` pour placer le curseur dans le champ. Dès la première lettre, les raccourcis correspondants (ceux des dossiers compris) s'affichent sous le champ : `Entrée` ouvre le premier, `↑` `↓` choisissent, `Échap` ferme la liste pour lancer une recherche web. `Cmd/Ctrl + Entrée` ouvre dans un nouvel onglet. Une adresse (`exemple.fr`, `localhost:3000`) ouvre directement le site.
+- **Clavier** : `Échap` dans le champ vide rend le focus à la page ; ensuite `1` à `9` ouvrent les neuf premiers raccourcis (`Maj` pour un nouvel onglet) et `e` bascule le mode modification.
 - **Mots-clés** : `yt lofi` cherche sur YouTube, `gh brave` sur GitHub, `w Turing` sur Wikipédia, `mdn flexbox` sur MDN. La liste se modifie dans les réglages.
 - Les raccourcis occupent la première rangée, les dossiers la seconde.
 - **Ouvrir tout un dossier** : clic molette sur un dossier (ou Cmd/Ctrl + clic) ouvre tous ses raccourcis dans des onglets d'arrière-plan, à la suite de l'onglet courant.
-- **Modifier les raccourcis** (en bas à droite) : ajoute des raccourcis et des dossiers, clique sur une tuile pour la modifier, glisse-la pour la déplacer. Une suppression peut être annulée pendant quelques secondes. Déposer un raccourci au centre d'un dossier l'y range ; le champ *Emplacement* d'un raccourci permet de l'en sortir.
-- **Réglages** : moteur de recherche, horloge, fond d'écran, couleur d'accent, export et import de la configuration.
+- **Modifier les raccourcis** (en bas à droite) : ajoute des raccourcis et des dossiers, clique sur une tuile pour la modifier, glisse-la pour la déplacer. Une suppression peut être annulée pendant quelques secondes. Déposer un raccourci au centre d'un dossier l'y range ; depuis un dossier ouvert, le déposer sur la zone « sortir du dossier » (ou hors de la fenêtre) le ramène à l'accueil.
+- **Réglages** : moteur de recherche, horloge, fond d'écran, couleur d'accent, icônes, export et import de la configuration.
+- **Icônes** : par défaut, Brave fournit celles des sites déjà visités (les autres ont un globe gris) et rien ne sort du navigateur. L'option « Via DuckDuckGo » les couvre tous, mais DuckDuckGo reçoit alors la liste de tes sites.
 
 ### Fond d'écran
 
@@ -35,11 +37,21 @@ Après une modification du code, clique sur la flèche de rechargement de l'exte
 
 La clé d'accès s'obtient gratuitement sur <https://unsplash.com/developers> (créer une application, copier l'*Access Key*). Elle est limitée à 50 requêtes par heure ; le mode « à chaque nouvel onglet » en consomme deux par onglet.
 
-Une extension ne peut pas relire un dossier du disque par elle-même (l'API File System Access est désactivée dans Brave) : le dossier est donc importé une fois. Après y avoir ajouté des images, choisis-le à nouveau dans les réglages ; la bibliothèque est alors remplacée. Les formats que le navigateur ne décode pas (HEIC, RAW) sont ignorés.
+Une extension ne peut pas relire un dossier du disque par elle-même (l'API File System Access est désactivée dans Brave) : le dossier est donc importé une fois. Un nouvel import remplace la bibliothèque, ou s'y ajoute si la case « Ajouter aux images déjà importées » est cochée. Les formats que le navigateur ne décode pas (HEIC, RAW) sont ignorés.
+
+La bibliothèque s'affiche en vignettes dans les réglages, avec un bouton pour retirer une image. Sur la page, « Retirer cette image » écarte celle qui est affichée. Les deux se défont avec « Annuler ».
+
+Quand « Assombrir davantage les photos claires » est coché, le voile se renforce automatiquement sur une image lumineuse, en mesurant les zones derrière l'horloge et les tuiles.
 
 L'intervalle de rotation se règle dans *Changer de photo* : un des préréglages, ou « À un intervalle de mon choix » pour saisir un nombre de minutes, d'heures ou de jours (1 minute au minimum). Si l'onglet reste ouvert, la rotation continue à cet intervalle.
 
 L'image affichée est gardée en cache (IndexedDB) : pas d'attente réseau à l'ouverture d'un onglet. En mode « par thème », la photo suivante est téléchargée en arrière-plan et montrée au prochain onglet.
+
+### Sauvegarde
+
+Tout est stocké dans `chrome.storage.local`, propre à l'extension (Brave Sync ne le synchronise pas ; désinstaller l'extension l'efface). **Réglages → Sauvegarde** exporte un fichier `seuil-AAAA-MM-JJ.json` avec raccourcis, mots-clés et réglages, et l'importe sur une autre machine. Par défaut la clé Unsplash n'y figure pas, ce qui rend le fichier partageable ; une case permet de l'inclure pour ta sauvegarde perso. Importer un fichier sans clé conserve celle déjà en place.
+
+Après un mois sans export, un rappel discret apparaît en bas de la page, avec « Exporter maintenant » et « Plus tard » (qui le repousse d'un mois).
 
 Plusieurs onglets ouverts restent synchronisés : une modification faite dans l'un apparaît aussitôt dans les autres, qui repartent de cette version au lieu de l'écraser.
 

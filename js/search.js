@@ -192,10 +192,15 @@ export function initSearch({ config }) {
       const step = event.key === 'ArrowDown' ? 1 : -1;
       active = (active + step + rows.length) % rows.length;
       render();
-    } else if (event.key === 'Escape' && rows.length) {
+    } else if (event.key === 'Escape') {
       event.preventDefault();
-      dismissed = true;
-      close();
+      if (rows.length) {
+        dismissed = true;
+        close();
+      } else {
+        // Liste déjà fermée : rendre le focus à la page, pour les raccourcis clavier.
+        input.blur();
+      }
     } else if (event.key === 'Enter') {
       event.preventDefault();
       submit(event.metaKey || event.ctrlKey);
