@@ -1,2 +1,5 @@
 .DS_Store
 .playwright-mcp/
+
+# Exports de configuration : contiennent la clé Unsplash
+seuil-*.json
